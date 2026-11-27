@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestion de la maintenance</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 24px; background: #f5f6f8; color: #1f2933; }
+        .barre { display: flex; justify-content: space-between; align-items: center; background: #1b263b; color: #fff; padding: 12px 18px; border-radius: 6px; margin-bottom: 20px; }
+        .barre a { color: #ffd166; text-decoration: none; font-weight: bold; }
+        .bloc { background: #fff; padding: 18px; margin-bottom: 20px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+        .entete-bloc { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .badge-total { background: #1b263b; color: #ffd166; padding: 6px 12px; border-radius: 999px; font-weight: bold; font-size: 14px; }
+        .form-ligne { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+        input, select, button { padding: 7px 10px; border: 1px solid #cbd2d9; border-radius: 4px; font-size: 14px; }
+        button { background: #1b263b; color: #fff; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { opacity: 0.92; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { border: 1px solid #ddd; padding: 9px 10px; text-align: left; }
+        th { background: #1b263b; color: #fff; }
+        .ok { color: #1b7a2b; font-weight: bold; }
+        .err { color: #b00020; font-weight: bold; }
+        .inline-form { display: inline; }
+        .btn-suppr { background: #c62828; color: #fff; border: none; padding: 5px 9px; border-radius: 4px; cursor: pointer; }
+        .btn-edit { background: #1565c0; color: #fff; padding: 5px 9px; border-radius: 4px; text-decoration: none; font-size: 13px; }
+        .btn-annuler { margin-left: 8px; color: #52606d; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="barre">
+        <span>Connecté : <strong>{{ request.user.username }}</strong> (Rôle : {{ role }})</span>
+        <a href="{% url 'deconnexion' %}">Se déconnecter</a>
+    </div>
+
+    <h1>Gestion de la maintenance</h1>
+    {% if succes %}<p class="ok">{{ succes }}</p>{% endif %}
+    {% if erreur %}<p class="err">Erreur : {{ erreur }}</p>{% endif %}
+
+    {% if maint_a_modifier %}
+    <div class="bloc">
+        <h2>Modifier la maintenance #{{ maint_a_modifier.id_maintenance }}</h2>
+        <form method="post" class="form-ligne">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="modifier_maintenance">
+            <input type="hidden" name="id_maintenance" value="{{ maint_a_modifier.id_maintenance }}">
+            <input type="number" name="id_machine" value="{{ maint_a_modifier.id_machine }}" min="1" required>
+            <input type="datetime-local" name="date_heure_debut" value="{{ maint_a_modifier.date_heure_debut|date:'Y-m-d\TH:i' }}">
+            <input type="number" name="duree_minutes" value="{{ duree_minutes_edit }}" min="1" required>
+            <button type="submit">Enregistrer la modification</button>
+            <a href="{% url 'espace_maintenance' %}" class="btn-annuler">Annuler</a>
+        </form>
+    </div>
+    {% else %}
+    <div class="bloc">
+        <h2>Enregistrer une intervention de maintenance</h2>
+        <form method="post" class="form-ligne">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="maintenance">
+            <input type="number" name="id_machine" list="liste-machines" placeholder="ID Machine (ex: 1)" min="1" required>
+            {% if machines %}
+            <datalist id="liste-machines">
+                {% for mach in machines %}
+                <option value="{{ mach.id_machine }}">{{ mach.code_machine }} — {{ mach.designation }}</option>
+                {% endfor %}
+            </datalist>
+            {% endif %}
+            <input type="datetime-local" name="date_heure_debut" required>
+            <input type="number" name="duree_minutes" placeholder="Durée (minutes)" min="1" required>
+            <select name="ref_piece">
+                <option value="">-- Aucune pièce consommée --</option>
+                {% for p in pieces %}
+                <option value="{{ p.ref_piece }}">{{ p.ref_piece }} — {{ p.libelle }} (Stock : {{ p.qte_stock }})</option>
+                {% endfor %}
+            </select>
+            <input type="number" name="quantite_consommee" placeholder="Qté consommée" min="0" value="0">
+            <button type="submit">Enregistrer l'intervention</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="bloc">
+        <div class="entete-bloc">
+            <h2>État des pièces en stock</h2>
+            <span class="badge-total">Total pièces en stock : {{ total_pieces_stock }}</span>
+        </div>
+        <table>
+            <tr>
+                <th>Référence</th>
+                <th>Désignation / Libellé</th>
+                <th>Quantité en stock</th>
+            </tr>
+            {% for p in pieces %}
+            <tr>
+                <td><strong>{{ p.ref_piece }}</strong></td>
+                <td>{{ p.libelle }}</td>
+                <td>{{ p.qte_stock }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3">Aucune pièce enregistrée pour le moment.</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="bloc">
+        <h2>Interventions enregistrées</h2>
+        <table>
+            <tr>
+                <th>ID</th>
+                <th>Machine</th>
+                <th>Début</th>
+                <th>Durée</th>
+                <th>Actions</th>
+            </tr>
+            {% for m in maintenances %}
+            <tr>
+                <td>{{ m.id_maintenance }}</td>
+                <td>{{ m.id_machine }}</td>
+                <td>{{ m.date_heure_debut }}</td>
+                <td>{{ m.duree }}</td>
+                <td>
+                    <a class="btn-edit" href="?edit_maint={{ m.id_maintenance }}">Modifier</a>
+                    <form method="post" class="inline-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="supprimer_maintenance">
+                        <input type="hidden" name="id_maintenance" value="{{ m.id_maintenance }}">
+                        <button type="submit" class="btn-suppr" onclick="return confirm('Supprimer cette maintenance ?');">Supprimer</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">Aucune intervention enregistrée.</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html>

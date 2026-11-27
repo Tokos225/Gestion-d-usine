@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Approvisionnement des pièces & Stock</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 24px; background: #f5f6f8; color: #1f2933; }
+        .barre { display: flex; justify-content: space-between; align-items: center; background: #1b263b; color: #fff; padding: 12px 18px; border-radius: 6px; margin-bottom: 20px; }
+        .barre a { color: #ffd166; text-decoration: none; font-weight: bold; }
+        .bloc { background: #fff; padding: 18px; margin-bottom: 20px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+        .entete-bloc { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .badge-total { background: #1b263b; color: #ffd166; padding: 6px 12px; border-radius: 999px; font-weight: bold; font-size: 14px; }
+        .form-ligne { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+        input, select, button { padding: 7px 10px; border: 1px solid #cbd2d9; border-radius: 4px; font-size: 14px; }
+        button { background: #1b263b; color: #fff; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { opacity: 0.92; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { border: 1px solid #ddd; padding: 9px 10px; text-align: left; }
+        th { background: #1b263b; color: #fff; }
+        .ok { color: #1b7a2b; font-weight: bold; }
+        .err { color: #b00020; font-weight: bold; }
+        .inline-form { display: inline; }
+        .btn-suppr { background: #c62828; color: #fff; border: none; padding: 5px 9px; border-radius: 4px; cursor: pointer; }
+        .btn-edit { background: #1565c0; color: #fff; padding: 5px 9px; border-radius: 4px; text-decoration: none; font-size: 13px; }
+        .btn-annuler { margin-left: 8px; color: #52606d; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="barre">
+        <span>Connecté : <strong>{{ request.user.username }}</strong> (Rôle : {{ role }})</span>
+        <a href="{% url 'deconnexion' %}">Se déconnecter</a>
+    </div>
+
+    <h1>Approvisionnement des pièces & Gestion du stock</h1>
+    {% if succes %}<p class="ok">{{ succes }}</p>{% endif %}
+    {% if erreur %}<p class="err">Erreur : {{ erreur }}</p>{% endif %}
+
+    {% if achat_a_modifier %}
+    <div class="bloc">
+        <h2>Modifier l'achat #{{ achat_a_modifier.id_achat }}</h2>
+        <form method="post" class="form-ligne">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="modifier_achat">
+            <input type="hidden" name="id_achat" value="{{ achat_a_modifier.id_achat }}">
+            <input type="text" name="ref_piece" list="liste-pieces" value="{{ achat_a_modifier.ref_piece.ref_piece }}" placeholder="Réf pièce" required>
+            <input type="text" name="code_fournisseur" list="liste-fournisseurs" value="{{ achat_a_modifier.code_fournisseur.code_fournisseur }}" placeholder="Code fournisseur" required>
+            <input type="number" name="quantite_achetee" value="{{ achat_a_modifier.quantite_achetee }}" min="1" required>
+            <input type="number" step="0.01" name="prix_achat" value="{{ achat_a_modifier.prix_achat }}" required>
+            <input type="date" name="date_achat" value="{{ achat_a_modifier.date_achat|date:'Y-m-d' }}">
+            <button type="submit">Enregistrer la modification</button>
+            <a href="{% url 'espace_stocks' %}" class="btn-annuler">Annuler</a>
+        </form>
+    </div>
+    {% else %}
+    <div class="bloc">
+        <h2>Enregistrer un achat de pièce</h2>
+        <form method="post" class="form-ligne">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="achat">
+            <input type="text" name="ref_piece" list="liste-pieces" placeholder="Réf pièce (ex: P01 ou P02)" required>
+            <input type="text" name="libelle_piece" placeholder="Libellé pièce (si nouvelle)">
+            <input type="text" name="code_fournisseur" list="liste-fournisseurs" placeholder="Code fournisseur (ex: F01 ou F02)" required>
+            <input type="text" name="raison_sociale" placeholder="Nom fournisseur (si nouveau)">
+            <input type="number" name="quantite_achetee" placeholder="Quantité" min="1" required>
+            <input type="number" step="0.01" name="prix_achat" placeholder="Prix d'achat" required>
+            <input type="date" name="date_achat">
+            <button type="submit">Enregistrer l'achat</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <datalist id="liste-pieces">
+        {% for p in pieces %}
+        <option value="{{ p.ref_piece }}">{{ p.libelle }} (Stock : {{ p.qte_stock }})</option>
+        {% endfor %}
+    </datalist>
+
+    <datalist id="liste-fournisseurs">
+        {% for f in fournisseurs %}
+        <option value="{{ f.code_fournisseur }}">{{ f.raison_sociale }}</option>
+        {% endfor %}
+    </datalist>
+
+    <div class="bloc">
+        <h2>Historique des achats</h2>
+        <table>
+            <tr>
+                <th>ID</th>
+                <th>Pièce</th>
+                <th>Fournisseur</th>
+                <th>Quantité</th>
+                <th>Prix achat</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+            {% for a in achats %}
+            <tr>
+                <td>{{ a.id_achat }}</td>
+                <td>{{ a.ref_piece.libelle }}</td>
+                <td>{{ a.code_fournisseur.raison_sociale }}</td>
+                <td>{{ a.quantite_achetee }}</td>
+                <td>{{ a.prix_achat }}</td>
+                <td>{{ a.date_achat }}</td>
+                <td>
+                    <a class="btn-edit" href="?edit_achat={{ a.id_achat }}">Modifier</a>
+                    <form method="post" class="inline-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="supprimer_achat">
+                        <input type="hidden" name="id_achat" value="{{ a.id_achat }}">
+                        <button type="submit" class="btn-suppr" onclick="return confirm('Supprimer cet achat ?');">Supprimer</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7">Aucun achat enregistré.</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    {% if piece_a_modifier %}
+    <div class="bloc">
+        <h2>Modifier la pièce {{ piece_a_modifier.ref_piece }}</h2>
+        <form method="post" class="form-ligne">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="modifier_piece">
+            <input type="hidden" name="ref_piece" value="{{ piece_a_modifier.ref_piece }}">
+            <input type="text" name="libelle" value="{{ piece_a_modifier.libelle }}" required>
+            <input type="number" step="0.01" name="prix_unitaire_ht" value="{{ piece_a_modifier.prix_unitaire_ht }}" required>
+            <input type="number" name="qte_stock" value="{{ piece_a_modifier.qte_stock }}" min="0" required>
+            <button type="submit">Enregistrer la pièce</button>
+            <a href="{% url 'espace_stocks' %}" class="btn-annuler">Annuler</a>
+        </form>
+    </div>
+    {% else %}
+    <div class="bloc">
+        <h2>Ajouter une nouvelle pièce</h2>
+        <form method="post" class="form-ligne">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="piece">
+            <input type="text" name="ref_piece" placeholder="Référence (ex: P02)" required>
+            <input type="text" name="libelle" placeholder="Libellé / Désignation" required>
+            <input type="number" step="0.01" name="prix_unitaire_ht" placeholder="Prix HT" required>
+            <input type="number" name="qte_stock" placeholder="Stock initial" value="0" min="0" required>
+            <button type="submit">Ajouter la pièce</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="bloc">
+        <div class="entete-bloc">
+            <h2>Stock des pièces</h2>
+            <span class="badge-total">Total pièces en stock : {{ total_pieces_stock }}</span>
+        </div>
+        <table>
+            <tr>
+                <th>Référence</th>
+                <th>Libellé</th>
+                <th>Prix HT</th>
+                <th>Stock</th>
+                <th>Actions</th>
+            </tr>
+            {% for p in pieces %}
+            <tr>
+                <td><strong>{{ p.ref_piece }}</strong></td>
+                <td>{{ p.libelle }}</td>
+                <td>{{ p.prix_unitaire_ht }}</td>
+                <td><strong>{{ p.qte_stock }}</strong></td>
+                <td>
+                    <a class="btn-edit" href="?edit_piece={{ p.ref_piece }}">Modifier</a>
+                    <form method="post" class="inline-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="supprimer_piece">
+                        <input type="hidden" name="ref_piece" value="{{ p.ref_piece }}">
+                        <button type="submit" class="btn-suppr" onclick="return confirm('Supprimer cette pièce ?');">Supprimer</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">Aucune pièce enregistrée.</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="bloc">
+        {% if fournisseur_a_modifier %}
+        <h2>Modifier le fournisseur {{ fournisseur_a_modifier.code_fournisseur }}</h2>
+        <form method="post" class="form-ligne">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="modifier_fournisseur">
+            <input type="hidden" name="code_fournisseur" value="{{ fournisseur_a_modifier.code_fournisseur }}">
+            <input type="text" name="raison_sociale" value="{{ fournisseur_a_modifier.raison_sociale }}" required>
+            <input type="text" name="adresse" value="{{ fournisseur_a_modifier.adresse }}" placeholder="Adresse">
+            <input type="text" name="telephone" value="{{ fournisseur_a_modifier.telephone }}" placeholder="Téléphone">
+            <button type="submit">Enregistrer la modification</button>
+            <a href="{% url 'espace_stocks' %}" class="btn-annuler">Annuler</a>
+        </form>
+        {% else %}
+        <h2>Ajouter un fournisseur</h2>
+        <form method="post" class="form-ligne">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="fournisseur">
+            <input type="text" name="code_fournisseur" placeholder="Code (ex: F02)" required>
+            <input type="text" name="raison_sociale" placeholder="Raison sociale / Nom" required>
+            <input type="text" name="adresse" placeholder="Adresse">
+            <input type="text" name="telephone" placeholder="Téléphone">
+            <button type="submit">Ajouter le fournisseur</button>
+        </form>
+        {% endif %}
+
+        <table>
+            <tr>
+                <th>Code</th>
+                <th>Raison sociale</th>
+                <th>Adresse</th>
+                <th>Téléphone</th>
+                <th>Actions</th>
+            </tr>
+            {% for f in fournisseurs %}
+            <tr>
+                <td><strong>{{ f.code_fournisseur }}</strong></td>
+                <td>{{ f.raison_sociale }}</td>
+                <td>{{ f.adresse }}</td>
+                <td>{{ f.telephone }}</td>
+                <td>
+                    <a class="btn-edit" href="?edit_fournisseur={{ f.code_fournisseur }}">Modifier</a>
+                    <form method="post" class="inline-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="supprimer_fournisseur">
+                        <input type="hidden" name="code_fournisseur" value="{{ f.code_fournisseur }}">
+                        <button type="submit" class="btn-suppr" onclick="return confirm('Supprimer ce fournisseur ?');">Supprimer</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">Aucun fournisseur enregistré.</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html>

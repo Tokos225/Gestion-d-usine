@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Inscription — Gestion d'usine</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #eef1f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .carte { background: #fff; padding: 28px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.12); width: 360px; }
+        h2 { margin-top: 0; color: #1b263b; }
+        label { display: block; margin-top: 12px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+        button { width: 100%; margin-top: 18px; padding: 10px; background: #1b7a2b; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 15px; }
+        .erreur { color: #b00020; margin-top: 10px; }
+        .lien-bas { margin-top: 16px; text-align: center; font-size: 14px; }
+        .lien-bas a { color: #1565c0; font-weight: bold; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="carte">
+        <h2>Créer un compte</h2>
+        <p>Inscrivez-vous et choisissez votre poste dans l'usine.</p>
+        {% if erreur %}<p class="erreur">{{ erreur }}</p>{% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <label>Identifiant</label>
+            <input type="text" name="username" placeholder="Ex: agent_maint1" required autofocus>
+            <label>Rôle / Espace de travail</label>
+            <select name="role" required>
+                <option value="Maintenance">Gestionnaire / Opérateur de Maintenance</option>
+                <option value="Stocks">Gestionnaire des Stocks & Approvisionnement</option>
+                <option value="Responsable">Responsable (Supervision & Incidents)</option>
+            </select>
+            <label>Mot de passe</label>
+            <input type="password" name="password" required>
+            <label>Confirmer le mot de passe</label>
+            <input type="password" name="password2" required>
+            <button type="submit">Créer mon compte et accéder</button>
+        </form>
+        <div class="lien-bas">
+            Déjà un compte ? <a href="{% url 'connexion' %}">Se connecter</a>
+        </div>
+    </div>
+</body>
+</html>

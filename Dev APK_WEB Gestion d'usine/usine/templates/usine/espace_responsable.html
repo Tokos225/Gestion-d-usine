@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestion des incidents</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 24px; background: #f5f6f8; }
+        .barre { display: flex; justify-content: space-between; align-items: center; background: #1b263b; color: #fff; padding: 12px 18px; border-radius: 6px; margin-bottom: 20px; }
+        .barre a { color: #ffd166; text-decoration: none; font-weight: bold; }
+        .bloc { background: #fff; padding: 16px; margin-bottom: 20px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #1b263b; color: #fff; }
+        input, select, button { padding: 7px 10px; margin: 4px 4px 4px 0; }
+        .ok { color: #1b7a2b; font-weight: bold; }
+        .err { color: #b00020; font-weight: bold; }
+        .inline-form { display: inline; }
+        .btn-suppr { background: #c62828; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-edit { background: #1565c0; color: #fff; padding: 5px 10px; border-radius: 4px; text-decoration: none; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="barre">
+        <span>Connecté : <strong>{{ request.user.username }}</strong> (Rôle : {{ role }})</span>
+        <a href="{% url 'deconnexion' %}">Se déconnecter</a>
+    </div>
+
+    <h1>Gestion des incidents de production</h1>
+    {% if succes %}<p class="ok">{{ succes }}</p>{% endif %}
+    {% if erreur %}<p class="err">Erreur : {{ erreur }}</p>{% endif %}
+
+    {% if incident_a_modifier %}
+    <div class="bloc">
+        <h2>Modifier l'incident {{ incident_a_modifier.num_incident }}</h2>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="modifier_incident">
+            <input type="hidden" name="num_incident" value="{{ incident_a_modifier.num_incident }}">
+            <label>ID Lot : <input type="number" name="id_lot" value="{{ incident_a_modifier.id_lot }}" min="1" required></label>
+            <label>Raison / Type :
+                <input type="text" name="raison_incident" list="liste_raisons" value="{{ incident_a_modifier.code_type.libelle }}" required>
+            </label>
+            <label>Temps d'arrêt (min) :
+                <input type="number" name="temps_arret_minutes" value="{{ arret_minutes_edit }}" min="1" required>
+            </label>
+            <button type="submit">Enregistrer la modification</button>
+            <a href="{% url 'espace_responsable' %}">Annuler</a>
+        </form>
+    </div>
+    {% else %}
+    <div class="bloc">
+        <h2>Déclarer un incident de production</h2>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="incident">
+            <input type="text" name="num_incident" placeholder="N° Incident (auto si vide)">
+            <input type="number" name="id_lot" placeholder="ID Lot (ex: 1)" min="1" required>
+            <input type="text" name="raison_incident" list="liste_raisons" placeholder="Raison de l'incident (ex: Panne capteur)" required>
+            <input type="number" name="temps_arret_minutes" placeholder="Temps d'arrêt (minutes)" min="1" required>
+            <button type="submit">Déclarer l'incident</button>
+        </form>
+        <datalist id="liste_raisons">
+            {% for t in types_incident %}
+            <option value="{{ t.libelle }}">
+            {% endfor %}
+        </datalist>
+    </div>
+    {% endif %}
+
+    <div class="bloc">
+        <h2>Incidents enregistrés</h2>
+        <table>
+            <tr><th>N° Incident</th><th>Lot</th><th>Raison / Type</th><th>Temps d'arrêt</th><th>Actions</th></tr>
+            {% for i in incidents %}
+            <tr>
+                <td>{{ i.num_incident }}</td>
+                <td>{{ i.id_lot }}</td>
+                <td>{{ i.code_type.libelle }}</td>
+                <td>{{ i.temps_arret }}</td>
+                <td>
+                    <a class="btn-edit" href="?edit_incident={{ i.num_incident }}">Modifier</a>
+                    <form method="post" class="inline-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="supprimer_incident">
+                        <input type="hidden" name="num_incident" value="{{ i.num_incident }}">
+                        <button type="submit" class="btn-suppr" onclick="return confirm('Supprimer cet incident ?');">Supprimer</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html>

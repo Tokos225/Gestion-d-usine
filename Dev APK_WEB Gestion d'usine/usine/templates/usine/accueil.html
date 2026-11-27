@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestion d'usine - Approvisionnement, Incidents & Maintenance</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 24px; background: #f5f6f8; }
+        h1, h2 { color: #1b263b; }
+        .bloc { background: #fff; padding: 16px; margin-bottom: 20px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #1b263b; color: #fff; }
+        .erreur { color: #b00020; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Gestion d'usine — Approvisionnement, Incidents & Maintenance</h1>
+
+    {% if erreur %}<p class="erreur">Erreur : {{ erreur }}</p>{% endif %}
+
+    <div class="bloc">
+        <h2>Enregistrer un achat de pièce</h2>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="achat">
+            <label>Pièce :
+                <select name="ref_piece" required>
+                    {% for p in pieces %}
+                        <option value="{{ p.ref_piece }}">{{ p.ref_piece }} - {{ p.libelle }} (Stock: {{ p.qte_stock }})</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Fournisseur :
+                <select name="code_fournisseur" required>
+                    {% for f in fournisseurs %}
+                        <option value="{{ f.code_fournisseur }}">{{ f.code_fournisseur }} - {{ f.raison_sociale }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Quantité : <input type="number" name="quantite_achetee" min="1" required></label>
+            <label>Prix d'achat : <input type="number" step="0.01" name="prix_achat" required></label>
+            <button type="submit">Valider l'achat</button>
+        </form>
+    </div>
+
+    <div class="bloc">
+        <h2>Stock des pièces</h2>
+        <table>
+            <tr><th>Référence</th><th>Libellé</th><th>Prix HT</th><th>Stock actuel</th></tr>
+            {% for p in pieces %}
+            <tr><td>{{ p.ref_piece }}</td><td>{{ p.libelle }}</td><td>{{ p.prix_unitaire_ht }}</td><td><strong>{{ p.qte_stock }}</strong></td></tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="bloc">
+        <h2>Historique des achats</h2>
+        <table>
+            <tr><th>ID</th><th>Pièce</th><th>Fournisseur</th><th>Quantité</th><th>Prix achat</th><th>Date</th></tr>
+            {% for a in achats %}
+            <tr><td>{{ a.id_achat }}</td><td>{{ a.ref_piece.libelle }}</td><td>{{ a.code_fournisseur.raison_sociale }}</td><td>{{ a.quantite_achetee }}</td><td>{{ a.prix_achat }}</td><td>{{ a.date_achat }}</td></tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="bloc">
+        <h2>Incidents enregistrés</h2>
+        <table>
+            <tr><th>N° Incident</th><th>Lot</th><th>Type</th><th>Temps d'arrêt</th></tr>
+            {% for i in incidents %}
+            <tr><td>{{ i.num_incident }}</td><td>{{ i.id_lot }}</td><td>{{ i.code_type.libelle }}</td><td>{{ i.temps_arret }}</td></tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="bloc">
+        <h2>Maintenances enregistrées</h2>
+        <table>
+            <tr><th>ID</th><th>Machine</th><th>Début</th><th>Durée</th></tr>
+            {% for m in maintenances %}
+            <tr><td>{{ m.id_maintenance }}</td><td>{{ m.id_machine }}</td><td>{{ m.date_heure_debut }}</td><td>{{ m.duree }}</td></tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html>
